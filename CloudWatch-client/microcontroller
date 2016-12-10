@@ -1,0 +1,111 @@
+#include <Arduino.h>
+
+#include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
+
+#include <ESP8266HTTPClient.h>
+#include <DHT.h>
+#define DHTTYPE DHT22
+#define DHTPIN  2
+
+#define USE_SERIAL Serial
+
+ESP8266WiFiMulti WiFiMulti;
+DHT dht(DHTPIN, DHTTYPE, 11); // 11 works fine for ESP8266
+
+float humidity, temp_f;
+float humidity1=0,humidity2=0, humidity3=0,temp_f1=0,temp_f2=0,temp_f3=0;
+unsigned long previousMillis = 0;        // will store last temp was read
+const long interval = 2000;
+
+void setup() {
+
+    USE_SERIAL.begin(115200);
+   // USE_SERIAL.setDebugOutput(true);
+
+    USE_SERIAL.println();
+    USE_SERIAL.println();
+    USE_SERIAL.println();
+
+    for(uint8_t t = 4; t > 0; t--) {
+        USE_SERIAL.printf("[SETUP] WAIT %d...\n", t);
+        USE_SERIAL.flush();
+        delay(1000);
+    }
+
+    WiFiMulti.addAP("apartment303", "paulpogba");
+
+}
+
+void loop() {
+    // wait for WiFi connection
+    if((WiFiMulti.run() == WL_CONNECTED)) {
+
+        HTTPClient http;
+        gettemperature();
+        if(humidity != 0 || temp_f !=0)
+        {
+        humidity1 = humidity;
+        temp_f1 = temp_f;
+        humidity =0;
+        temp_f=0;
+        }
+        gettemperature();
+        if(humidity != 0 || temp_f !=0)
+        {
+        humidity2 = humidity;
+        temp_f2 = temp_f;
+        humidity =0;
+        temp_f=0;
+        }
+        gettemperature();
+        if(humidity != 0 || temp_f !=0)
+        {
+        humidity3 = humidity;
+        temp_f3 = temp_f;
+        humidity =0;
+        temp_f=0;
+        }
+        USE_SERIAL.print("[HTTP] begin...\n");
+          USE_SERIAL.print("humidity  "+String((int)humidity)+"temp  "+String((int)temp_f)+" ");
+        if(humidity1!=0 && humidity2!=0 && humidity3!=0 && temp_f1!=0 && tem/p_f2!=0 && temp_f3!=0)
+        if(humidity <=120 || temp_f <= 120)
+        {
+        http.begin("http://35.163.212.84:3018/fill?sensor_id=2559&temp1="+String((int)temp_f1)+"&humidity1="+String((int)humidity1)+"&temp2="+String((int)temp_f2)+"&humidity2="+String((int)humidity2)+"&temp3="+String((int)temp_f3)+"&humidity3="+String((int)humidity3)); //HTTP
+        USE_SERIAL.print("[HTTP] GET...\n");
+        // start connection and send HTTP header
+        int httpCode = http.GET();
+        // httpCode will be negative on error
+        if(httpCode > 0) {
+            // HTTP header has been send and Server response header has been handled
+            USE_SERIAL.printf("[HTTP] GET... code: %d\n", httpCode);
+
+            // file found at server
+            if(httpCode == HTTP_CODE_OK) {
+                String payload = http.getString();
+                USE_SERIAL.println(payload);
+            }
+        } else {
+            USE_SERIAL.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
+        }
+
+        http.end();
+        }
+    }
+
+    delay(10000);
+}
+
+void gettemperature() {
+  unsigned long currentMillis = millis();
+
+  if(currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+    humidity = dht.readHumidity();          // Read humidity (percent)
+    temp_f = dht.readTemperature(true);     // Read temperature as Fahrenheit
+    if (isnan(humidity) || isnan(temp_f)) {
+      Serial.println("Failed to read from DHT sensor!");
+      return;
+    }
+  }
+}
